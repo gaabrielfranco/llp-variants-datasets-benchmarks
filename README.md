@@ -10,13 +10,26 @@ Repository for reproducing the results of the paper "Evaluating LLP Methods: Cha
 pip3 install -r requirements.txt
 ```
 
-To use MM[^1], LMM, and AMM[^2] it is necessary to get its code:
+To use MM[^1], LMM, and AMM[^2] it is necessary to get their code:
 
 ```sh
 git clone https://github.com/giorgiop/almostnolabel.git
 ```
 [^1]: Quadrianto, Novi, et al. "Estimating labels from label proportions." Proceedings of the 25th international conference on Machine learning. 2008.
+
 [^2]: Patrini, Giorgio, et al. "(Almost) no label no cry." Advances in Neural Information Processing Systems 27 (2014).
+
+To install the R libraries:
+```sh
+install_r_libraries.py
+```
+
+Regarding the CI tests, we made some changes in FCIT[^3] to allow reproducibility. To get its code:
+```sh
+git clone https://github.com/gaabrielfranco/fcit.git
+```
+
+[^3]: Chalupka, Krzysztof, Pietro Perona, and Frederick Eberhardt. "Fast conditional independence test for vector variables with large sample sizes." arXiv preprint arXiv:1804.02747 (2018).
 
 ## Run an single experiment
 
