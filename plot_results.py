@@ -47,12 +47,9 @@ split_method_map = {
 
 error_metric_map = {
     "error_bag_abs": "Abs loss",
-    "hypergeo": "Prob. based loss"
 }
 
-# TODO: think about this - maybe beta experiments in a separate dataframe
 final_results = pd.read_parquet("datasets-benchmark-experiment-results.parquet")
-
 final_results.rename(columns={"metric": "error_metric"}, inplace=True)
 
 final_results["error_metric"].replace(error_legend_map, inplace=True)
@@ -61,7 +58,6 @@ final_results["split_method"].replace(split_method_map, inplace=True)
 final_results["split_method"] = final_results["split_method"] + "\n" + final_results["validation_size_perc"].astype(str)
 final_results["split_method"] = final_results["split_method"].str.replace("nan", "")
 
-final_results["dataset"] = final_results["dataset"] + "-" + final_results["n_splits"] + "folds"
 final_results["error_metric"].replace(error_metric_map, inplace=True)
 
 base_datasets = ["adult", "cifar-10-grey"]
@@ -110,33 +106,14 @@ if args.plot_type == "check-n-experiments":
     print("Total number of experiments:", len(n_experiments_df))
     print("Experiments per split_method")
     print(n_experiments_df["split_method"].value_counts())
-elif args.plot_type == "aggregate-category-results":
-    for base_dataset in base_datasets:
-        for size in ["small", "large"]:
-            for proportions_type in ["equal", "not-equal"]:
-                for llp_variant in VARIANTS:
-                    df_dataset = final_results[(final_results.dataset.str.contains(base_dataset)) & (final_results.dataset.str.contains(llp_variant)) & (final_results.dataset.str.contains(f"{size}-{proportions_type}-"))]
-                    min_acc = df_dataset.accuracy_test.min()
-                    max_acc = df_dataset.accuracy_test.max()
-                    y_lim = (min_acc - 0.05, max_acc + 0.05)
-                    g = sns.FacetGrid(df_dataset, col="model", row="dataset", ylim=y_lim, height=5, aspect=1.5)
-                    g.map(sns.pointplot, "split_method", "accuracy_test", dodge=True, join=False, 
-                            capsize=.2, errorbar=("se", 1.96), order=sorted(df_dataset.split_method.unique()))
-                    g.set_axis_labels("", "Accuracy")
-                    g.set_titles("{row_name}\n{col_name}")
-                    plt.tight_layout()
-                    filename = f"plots/agg-category-plots/{base_dataset}-{size}-{proportions_type}-{llp_variant}.pdf"
-                    plt.savefig(filename, bbox_inches='tight', pad_inches=0.01, dpi=800)
-                    plt.close()
 elif args.plot_type == "datasets-info":
     dataset_info = pd.DataFrame(columns=["Dataset", "Number of bags", "Proportions", "Bag sizes"])
 
-    files = glob.glob("../datasets-ci/*.parquet")
+    files = glob.glob("datasets-ci/*.parquet")
     files = sorted(files)
-    # Removing base datasets
 
-    files = [file for file in files if "adult.parquet" not in file]
-    files = [file for file in files if "cifar-10-grey-animal-vehicle.parquet" not in file]
+    # Removing base datasets
+    files = [file for file in files if "adult.parquet" not in file and "cifar-10-grey-animal-vehicle.parquet" not in file]
 
     for file in files:
 
@@ -151,7 +128,7 @@ elif args.plot_type == "datasets-info":
         base_dataset = base_dataset[:-1]
 
         # Reading X, y (base dataset) and bags (dataset)
-        df = pd.read_parquet("{}/{}.parquet".format("../datasets-ci", base_dataset))
+        df = pd.read_parquet("{}/{}.parquet".format("datasets-ci", base_dataset))
         X = df.drop(["y"], axis=1).values
         y = df["y"].values.reshape(-1, 1)
 
@@ -162,11 +139,11 @@ elif args.plot_type == "datasets-info":
         proportions = [round(x, 2) for x in proportions]
         bags_sizes = np.bincount(bags)
         list2str = lambda x: ("(" + ",".join([str(y) for y in x]) + ")").replace(",)", ")")
-        dataset_info = dataset_info.append({"Dataset": dataset, "Number of bags": len(np.unique(bags)), "Proportions": list2str(proportions), "Bag sizes": list2str(bags_sizes)}, ignore_index=True)
+        dataset_info = pd.concat([dataset_info, pd.DataFrame({"Dataset": [dataset], "Number of bags": [len(np.unique(bags))], "Proportions": [list2str(proportions)], "Bag sizes": [list2str(bags_sizes)]})], ignore_index=True)
     dataset_info.sort_values(by=["Dataset"], inplace=True)
     with pd.option_context("max_colwidth", 10000):
-        dataset_info.to_latex(buf="plots/dataset-info-plots/table-datasets-info", index=False, escape=False)
-elif args.plot_type == "table-best-methods":
+        dataset_info.to_latex(buf="tables/table-datasets-info.tex", index=False, escape=False)
+elif args.plot_type == "best-methods":
     df_best_methods = pd.DataFrame(columns=["base_dataset", "dataset_variant", "n_bags", "bag_sizes", "proportions", "best_hyperparam_method", "best_algorithm", "best_in_both"])
     for base_dataset in sorted(final_results.base_dataset.unique()):
         for llp_variant in sorted(final_results.dataset_variant.unique()):
@@ -287,7 +264,7 @@ elif args.plot_type == "table-best-methods":
                            "best_algorithm": str(sorted(best_models)),
                            "best_in_both": str(sorted(best_global_combination))
                         }, index=[0])], ignore_index=True)
-
+    
     # Categorizing the best_hyperparam_method 
     def get_best_hyperparam_method_cat(x):
         if "SB" in x and "FB" in x:
@@ -355,3 +332,24 @@ elif args.plot_type == "table-best-methods":
     filename = "plots/best-algorithms-per-base-dataset-and-dataset-variant.pdf"
     plt.savefig(filename, bbox_inches='tight', pad_inches=0.01, dpi=800)
     plt.close()
+elif args.plot_type == "table-all-results":
+    get_performance = lambda x: f"{np.round(x.f1_test.mean(), 4)} ({np.round(1.96 * np.std(x.f1_test.values)/np.sqrt(len(x.f1_test.values)), 4)})"
+
+    # Dataframe with all results
+    df_results = pd.DataFrame(columns=["Dataset", "Algorithm", "Full-Bag K-fold", "Split-Bag K-fold", "Split-Bag Shuffle", "Split-Bag Bootstrap"])
+
+    for dataset in final_results.dataset.unique():
+        final_result_dataset = deepcopy(final_results[final_results.dataset == dataset])
+        for model in final_result_dataset.model.unique():
+            data = final_result_dataset[(final_result_dataset.model == model)]
+            df_results = pd.concat([df_results, pd.DataFrame({
+                "Dataset": dataset,
+                "Algorithm": model,
+                "Full-Bag K-fold": get_performance(data[data.split_method == "FB\nKF\n"]),
+                "Split-Bag K-fold": get_performance(data[data.split_method == "SB\nKF\n"]),
+                "Split-Bag Shuffle": get_performance(data[data.split_method == "SB\nSH\n0.5"]),
+                "Split-Bag Bootstrap": get_performance(data[data.split_method == "SB\nBS\n0.5"]),
+            }, index=[0])], ignore_index=True)
+
+    with pd.option_context("max_colwidth", 10000):
+        df_results.to_latex(buf="tables/all-results.tex", index=False, escape=False)

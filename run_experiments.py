@@ -8,7 +8,6 @@ from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import ShuffleSplit
 from sklearn.preprocessing import MinMaxScaler
 
-from llp_learn.alter import alterSVM, alterSVMRBF
 from llp_learn.em import EM
 from llp_learn.dllp import DLLP
 from llp_learn.model_selection import gridSearchCV
@@ -67,12 +66,10 @@ directory = "datasets-experiments-results/"
 # Parsing arguments
 parser = argparse.ArgumentParser(description="LLP loss experiments")
 parser.add_argument("--dataset", "-d", required=True, help="the dataset that will be used in the experiments")
-parser.add_argument("--model", "-m", choices=["llp-svm-lin", "llp-svm-rbf", "kdd-lr", "lmm", "amm", "mm", "dllp"], required=True,
+parser.add_argument("--model", "-m", choices=["kdd-lr", "lmm", "amm", "mm", "dllp"], required=True,
                     help="the model that will be used in the experiments")
-parser.add_argument("--loss", "-l", choices=["abs", "log-cosh", "weighted-log-cosh", "weighted-abs", "hypergeo"],
+parser.add_argument("--loss", "-l", choices=["abs"],
                     help="the loss function that will be used in the experiment")
-parser.add_argument("--weight_method", "-w", choices=["fisher-info"],
-                    help="the weight method that will be used in the experiment")
 parser.add_argument("--n_splits", "-n", type=int,
                     help="the number of splits that will be used in the experiment")
 parser.add_argument("--validation_size", "-v", type=float,
@@ -100,7 +97,7 @@ for execution in executions:
     start = time.time()
 
     filename = directory + str(args.dataset) + "_" + str(args.model) + "_" + str(
-        args.loss) + "_" + str(args.weight_method) + "_" + str(args.splitter) + "_" + str(args.n_splits) + "_" + str(args.validation_size) + "_" + str(execution) + ".parquet"
+        args.loss) + "_" + str(None) + "_" + str(args.splitter) + "_" + str(args.n_splits) + "_" + str(args.validation_size) + "_" + str(execution) + ".parquet"
 
     if args.model == "kdd-lr":
         params = {"C": [0.01, 0.1, 1, 10, 100, 1000]}
@@ -120,7 +117,6 @@ for execution in executions:
     print("Dataset: %s" % args.dataset)
     print("Model: %s" % args.model)
     print("Loss function: %s" % args.loss)
-    print("Weight Method: %s" % args.weight_method)
     print("Params: %s" % params)
     print("n_splits: %s" % args.n_splits)
     print("validation_size: %s" % args.validation_size)
@@ -141,13 +137,7 @@ for execution in executions:
 
     print("Execution started!!!")
 
-    if args.model == "llp-svm-rbf":
-        model = alterSVMRBF(llp_loss_function_type=args.loss, weight_method=args.weight_method,
-                        random_state=seed[execution])
-    elif args.model == "llp-svm-lin":
-        model = alterSVM(llp_loss_function_type=args.loss, weight_method=args.weight_method,
-                        random_state=seed[execution])
-    elif args.model == "kdd-lr":
+    if args.model == "kdd-lr":
         model = EM(LogisticRegression(solver='lbfgs'), init_y="random", random_state=seed[execution])
     elif args.model == "lmm":
         model = LMM(lmd=1, gamma=1, sigma=1)
