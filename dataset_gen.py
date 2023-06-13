@@ -1,4 +1,5 @@
 import argparse
+import os
 from datasets import llp_variant_generation
 import pandas as pd
 import numpy as np
@@ -28,7 +29,7 @@ def load_base_dataset(base_dataset, random_state=None):
         The labels.
     """
     if base_dataset == "adult":
-        df = pd.read_csv("base-datasets/adult.csv")
+        df = pd.read_parquet("base-datasets/adult.parquet")
         df.drop(columns=["educational-num"], inplace=True)
         df.gender.replace({"Male": 0, "Female": 1}, inplace=True)
         df.income.replace({"<=50K": 0, ">50K": 1}, inplace=True)
@@ -104,6 +105,11 @@ n_clusters = args.n_clusters
 n_bags_type = args.n_bags
 bags_size_type = args.bags_size
 proportions_type = args.proportions
+
+try:
+    os.mkdir("datasets-ci")
+except:
+    pass
 
 proportions_target, bags_sizes_target = CANDIDATES[base_dataset][n_bags_type][bags_size_type][proportions_type]
 bags_sizes_target_naive = CANDIDATES[base_dataset][n_bags_type][bags_size_type]["naive"]

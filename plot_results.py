@@ -353,3 +353,26 @@ elif args.plot_type == "table-all-results":
 
     with pd.option_context("max_colwidth", 10000):
         df_results.to_latex(buf="tables/all-results.tex", index=False, escape=False)
+
+elif args.plot_type == "table-ci-tests":
+    df_ci = pd.read_csv("ci-tests/ci-results.csv")
+    df_ci.llp_variant.replace({
+        "naive": "Naive",
+        "simple": "Simple",
+        "intermediate": "Intermediate",
+        "hard": "Hard",
+    }, inplace=True)
+
+    df_ci.rename(columns={
+        "dataset": "Dataset",
+        "llp_variant": "LLP Variant",
+        "follow_dgm": "Follow DGM",
+        "b-indep-y": "B Indep. Y (p-value)",
+        "x-indep-b": "X Indep. B (p-value)",
+        "x-indep-y-given-b": "X Indep. Y Given B (p-value)",
+        "x-indep-b-given-y": "X Indep. B Given Y (p-value)",
+        "b-indep-y-given-x": "B Indep. Y Given X (p-value)",
+    }, inplace=True)
+    
+    with pd.option_context("max_colwidth", 10000):
+        df_ci.to_latex(buf="tables/all-ci-tests.tex", index=False, escape=False)

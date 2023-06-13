@@ -15,8 +15,6 @@ from llp_learn.util import compute_proportions
 
 from almostnolabel import MM, LMM, AMM
 
-#from grid_search_experiments import gridSearchCVExperiments
-
 VARIANTS = ["naive", "simple", "intermediate", "hard"]
 
 def load_dataset(args, execution):

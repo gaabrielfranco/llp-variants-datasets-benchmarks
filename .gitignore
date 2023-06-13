@@ -2,6 +2,14 @@ almostnolabel/
 fcit/
 .DS_Store
 datasets-experiments-results/
+cifar-10-batches-py/
+cifar-10-python.tar.gz
+base-datasets/Index
+old.adult.names
+adult.zip
+adult.data
+adult.test
+adult.names
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
