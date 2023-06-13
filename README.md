@@ -21,7 +21,7 @@ git clone https://github.com/giorgiop/almostnolabel.git
 
 To install the R libraries:
 ```sh
-install_r_libraries.py
+python3 install_r_libraries.py
 ```
 
 Regarding the CI tests, we made some changes in FCIT[^3] to allow reproducibility. To get its code:

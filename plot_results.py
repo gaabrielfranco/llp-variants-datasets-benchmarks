@@ -121,8 +121,7 @@ elif args.plot_type == "datasets-info":
 
         # Extracting variant
         llp_variant = [variant for variant in VARIANTS if variant in dataset][0]
-        print("LLP variant: {}".format(llp_variant))
-        
+
         # Extracting base dataset
         base_dataset = dataset.split(llp_variant)[0]
         base_dataset = base_dataset[:-1]
@@ -138,11 +137,11 @@ elif args.plot_type == "datasets-info":
         proportions = compute_proportions(bags, y)
         proportions = [round(x, 2) for x in proportions]
         bags_sizes = np.bincount(bags)
-        list2str = lambda x: ("(" + ",".join([str(y) for y in x]) + ")").replace(",)", ")")
+        list2str = lambda x: ("(" + ", ".join([str(y) for y in x]) + ")").replace(",)", ")")
         dataset_info = pd.concat([dataset_info, pd.DataFrame({"Dataset": [dataset], "Number of bags": [len(np.unique(bags))], "Proportions": [list2str(proportions)], "Bag sizes": [list2str(bags_sizes)]})], ignore_index=True)
     dataset_info.sort_values(by=["Dataset"], inplace=True)
     with pd.option_context("max_colwidth", 10000):
-        dataset_info.to_latex(buf="tables/table-datasets-info.tex", index=False, escape=False)
+        dataset_info.to_latex(buf="tables/table-datasets-info.tex", index=False, escape=False, longtable=True)
 elif args.plot_type == "best-methods":
     df_best_methods = pd.DataFrame(columns=["base_dataset", "dataset_variant", "n_bags", "bag_sizes", "proportions", "best_hyperparam_method", "best_algorithm", "best_in_both"])
     for base_dataset in sorted(final_results.base_dataset.unique()):
@@ -352,7 +351,7 @@ elif args.plot_type == "table-all-results":
             }, index=[0])], ignore_index=True)
 
     with pd.option_context("max_colwidth", 10000):
-        df_results.to_latex(buf="tables/all-results.tex", index=False, escape=False)
+        df_results.to_latex(buf="tables/all-results.tex", index=False, escape=False, longtable=True)
 
 elif args.plot_type == "table-ci-tests":
     df_ci = pd.read_csv("ci-tests/ci-results.csv")
@@ -362,6 +361,9 @@ elif args.plot_type == "table-ci-tests":
         "intermediate": "Intermediate",
         "hard": "Hard",
     }, inplace=True)
+
+    for col in ["b-indep-y", "x-indep-b", "x-indep-y-given-b", "x-indep-b-given-y", "b-indep-y-given-x"]:
+        df_ci[col] = df_ci[col].apply(lambda x: f"{x:.2f}")
 
     df_ci.rename(columns={
         "dataset": "Dataset",
@@ -375,4 +377,4 @@ elif args.plot_type == "table-ci-tests":
     }, inplace=True)
     
     with pd.option_context("max_colwidth", 10000):
-        df_ci.to_latex(buf="tables/all-ci-tests.tex", index=False, escape=False)
+        df_ci.to_latex(buf="tables/all-ci-tests.tex", index=False, escape=False, longtable=True)
