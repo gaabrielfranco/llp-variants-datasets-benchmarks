@@ -121,3 +121,20 @@ python3 plot_results.py -p table-ci-tests
 ```
 
 The tables are saved in the ```tables``` folder.
+
+## Load a dataset
+
+```py
+dataset = "adult-hard-large-equal-close-global-cluster-kmeans-5.parquet"
+base_dataset = "adult.parquet"
+
+# Reading X, y (base dataset) and bags (dataset)
+df = pd.read_parquet(f"datasets-ci/{base_dataset}")
+X = df.drop(["y"], axis=1).values
+y = df["y"].values
+y = y.reshape(-1)
+
+df = pd.read_parquet(f"datasets-ci/{dataset}")
+bags = df["bag"].values
+bags = bags.reshape(-1)
+```
