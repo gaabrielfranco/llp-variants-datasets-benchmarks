@@ -144,6 +144,7 @@ elif args.plot_type == "datasets-info":
         dataset_info.to_latex(buf="tables/table-datasets-info.tex", index=False, escape=False, longtable=True)
 elif args.plot_type == "best-methods":
     df_best_methods = pd.DataFrame(columns=["base_dataset", "dataset_variant", "n_bags", "bag_sizes", "proportions", "best_hyperparam_method", "best_algorithm", "best_in_both"])
+    diff_best_model_bottom = []
     for base_dataset in sorted(final_results.base_dataset.unique()):
         for llp_variant in sorted(final_results.dataset_variant.unique()):
             for n_bags in sorted(final_results.n_bags.unique()):
@@ -151,7 +152,7 @@ elif args.plot_type == "best-methods":
                     for proportions in sorted(final_results.proportions.unique()):
                         if proportions == "none" and llp_variant != "Naive":
                             continue # Skip the none proportion (naive case)
-
+                        
                         best_method = deepcopy(final_results[(final_results.base_dataset == base_dataset) & (final_results.dataset_variant == llp_variant) & (final_results.n_bags == n_bags) & (final_results.bag_sizes == bag_sizes) & (final_results.proportions == proportions)])
 
                         # Combination doesn't exist (case of CIFAR-10 intermediate that are not close-global)
@@ -188,7 +189,6 @@ elif args.plot_type == "best-methods":
                         accuracy_models = {}
                         avg_accuracy_models = {}
                         for model in best_method.model.unique():
-                            #accuracy_models[model] = deepcopy(best_method[best_method.model == model].accuracy_test.values)
                             accuracy_models[model] = deepcopy(best_method[best_method.model == model].f1_test.values)
                             avg_accuracy_models[model] = np.mean(accuracy_models[model])
 
@@ -202,7 +202,10 @@ elif args.plot_type == "best-methods":
                             best_models_test = ttest_ind(accuracy_models[avg_accuracy_models[0][0]],
                                 accuracy_models[avg_accuracy_models[i][0]],
                                 equal_var=False, random_state=73921)
-                            if best_models_test.pvalue <= 0.05:                                
+                            if best_models_test.pvalue <= 0.05:
+                                # Computing the difference:
+                                # worst method of the set of best methods - method right below the set of best methods
+                                diff_best_model_bottom.append(avg_accuracy_models[i-1][1] - avg_accuracy_models[i][1])
                                 break
                             else:
                                 best_models.add(avg_accuracy_models[i][0])
@@ -219,7 +222,6 @@ elif args.plot_type == "best-methods":
                             # Get the best hyperparameter method for this model
                             best_method_model = best_method[best_method.model == model]
                             for split_method in best_method_model.split_method.unique():
-                                #accuracy_split_method[split_method] = deepcopy(best_method_model[best_method_model.split_method == split_method].accuracy_test.values)
                                 accuracy_split_method[split_method] = deepcopy(best_method_model[best_method_model.split_method == split_method].f1_test.values)
                                 avg_accuracy_split_method[split_method] = np.mean(accuracy_split_method[split_method])
 
@@ -297,7 +299,7 @@ elif args.plot_type == "best-methods":
     g.set_xlabels("")
     plt.tight_layout()
     filename = "plots/best-hyperparam-methods-per-base-dataset-and-dataset-variant.pdf"
-    plt.savefig(filename, bbox_inches='tight', pad_inches=0.01, dpi=800)
+    #plt.savefig(filename, bbox_inches='tight', pad_inches=0.01, dpi=800)
     plt.close()
 
     # Print best algorithm per base dataset and dataset variant
@@ -329,8 +331,26 @@ elif args.plot_type == "best-methods":
     plt.legend(bbox_to_anchor=(1.1, 1.8), loc=2, borderaxespad=0., fontsize=5)
     plt.tight_layout()
     filename = "plots/best-algorithms-per-base-dataset-and-dataset-variant.pdf"
+    #plt.savefig(filename, bbox_inches='tight', pad_inches=0.01, dpi=800)
+    plt.close()
+
+    # Plot the effect size: how much the best algorithms are the best
+    matplotlib.rcParams['pdf.fonttype'] = 42
+    matplotlib.rcParams['ps.fonttype'] = 42
+    matplotlib.style.use('ggplot')
+    plt.rcParams['axes.facecolor'] = 'white'
+    plt.rc('font', size=6)
+        
+    _, ax = plt.subplots(figsize=(3.5, 2))
+
+    g = sns.histplot(diff_best_model_bottom, kde=True, ax=ax, kde_kws={'bw_adjust': 0.5}, stat="count")
+    plt.xlabel("Difference in " + r"$F_1$" + "-score")
+    plt.ylabel("Count")
+    plt.tight_layout()
+    filename = "plots/effect-sizes-dist.pdf"
     plt.savefig(filename, bbox_inches='tight', pad_inches=0.01, dpi=800)
     plt.close()
+
 elif args.plot_type == "table-all-results":
     get_performance = lambda x: f"{np.round(x.f1_test.mean(), 4)} ({np.round(1.96 * np.std(x.f1_test.values)/np.sqrt(len(x.f1_test.values)), 4)})"
 
