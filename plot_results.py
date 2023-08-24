@@ -285,8 +285,7 @@ elif args.plot_type == "best-methods":
     D.rename(columns={"best_hyperparam_method_cat": "Best Hyperparam. Selection Method",
                       "base_dataset": "Base Dataset",
                       "dataset_variant": "Dataset Variant",
-                      "count": "Frequency"}, inplace=True)
-    #sns.set(font_scale=0.7)
+                      "count": "Proportion"}, inplace=True)
     matplotlib.rcParams['pdf.fonttype'] = 42
     matplotlib.rcParams['ps.fonttype'] = 42
     matplotlib.style.use('ggplot')
@@ -294,12 +293,12 @@ elif args.plot_type == "best-methods":
     plt.rcParams['axes.edgecolor'] = 'black'
     plt.rc('font', size=6)
 
-    g = sns.catplot(row="Base Dataset", y="Frequency", x="Best Hyperparam. Selection Method", col="Dataset Variant", data=D, kind="bar", errorbar=None, col_order=["Hard", "Intermediate", "Simple", "Naive"], legend=False, height=1.1, aspect=1.1, sharex=True)
+    g = sns.catplot(row="Base Dataset", y="Proportion", x="Best Hyperparam. Selection Method", col="Dataset Variant", data=D, kind="bar", errorbar=None, col_order=["Hard", "Intermediate", "Simple", "Naive"], legend=False, height=1.1, aspect=1.1, sharex=True)
     g.set_titles("{row_name}\n{col_name}")
     g.set_xlabels("")
     plt.tight_layout()
     filename = "plots/best-hyperparam-methods-per-base-dataset-and-dataset-variant.pdf"
-    #plt.savefig(filename, bbox_inches='tight', pad_inches=0.01, dpi=800)
+    plt.savefig(filename, bbox_inches='tight', pad_inches=0.01, dpi=800)
     plt.close()
 
     # Print best algorithm per base dataset and dataset variant
@@ -314,7 +313,7 @@ elif args.plot_type == "best-methods":
                       "base_dataset": "Base Dataset",
                       "dataset_variant": "Dataset Variant",
                       "best_algorithm_legend": "Best Algorithm Index",
-                      "count": "Frequency"}, inplace=True)
+                      "count": "Proportion"}, inplace=True)
     matplotlib.rcParams['pdf.fonttype'] = 42
     matplotlib.rcParams['ps.fonttype'] = 42
     matplotlib.style.use('ggplot')
@@ -322,7 +321,7 @@ elif args.plot_type == "best-methods":
     plt.rcParams['axes.edgecolor'] = 'black'
     plt.rc('font', size=6)
 
-    g = sns.catplot(row="Base Dataset", y="Frequency", x="Best Algorithm Index", hue="Best Algorithm(s)", col="Dataset Variant", data=D, kind="bar", errorbar=None, col_order=["Hard", "Intermediate", "Simple", "Naive"], legend=False, height=1.1, aspect=1.1, sharex=True, dodge=False)#, width=1)
+    g = sns.catplot(row="Base Dataset", y="Proportion", x="Best Algorithm Index", hue="Best Algorithm(s)", col="Dataset Variant", data=D, kind="bar", errorbar=None, col_order=["Hard", "Intermediate", "Simple", "Naive"], legend=False, height=1.1, aspect=1.1, sharex=True, dodge=False)#, width=1)
     g.set_titles("{row_name}\n{col_name}")
     g.set_xlabels("")
     g.set_xticklabels("")
@@ -331,7 +330,7 @@ elif args.plot_type == "best-methods":
     plt.legend(bbox_to_anchor=(1.1, 1.8), loc=2, borderaxespad=0., fontsize=5)
     plt.tight_layout()
     filename = "plots/best-algorithms-per-base-dataset-and-dataset-variant.pdf"
-    #plt.savefig(filename, bbox_inches='tight', pad_inches=0.01, dpi=800)
+    plt.savefig(filename, bbox_inches='tight', pad_inches=0.01, dpi=800)
     plt.close()
 
     # Plot the effect size: how much the best algorithms are the best
