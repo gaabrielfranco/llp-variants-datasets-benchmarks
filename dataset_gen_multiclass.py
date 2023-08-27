@@ -54,6 +54,28 @@ def load_base_dataset(base_dataset, random_state=None):
         X = covtype.data
         y = covtype.target
         y -= 1 # We want the labels to be in [0, 6]
+    elif base_dataset == "cifar-10-grey":
+        df = pd.read_parquet("base-datasets/cifar-10-grey.parquet")
+        df = df.sample(frac=1, random_state=random_state)
+        X = deepcopy(df.drop(columns=["label"]).values)
+        y = deepcopy(df["label"].values)
+    elif base_dataset == "adult":
+        df = pd.read_parquet("base-datasets/adult.parquet")
+        df.drop(columns=["educational-num"], inplace=True)
+        df.gender.replace({"Male": 0, "Female": 1}, inplace=True)
+        df.income.replace({"<=50K": 0, ">50K": 1}, inplace=True)
+        df = pd.get_dummies(df, columns=
+                            ["age", "workclass", "education", "marital-status", \
+                             "occupation", "relationship", "race", "native-country"])
+        df = df.sample(frac=1, random_state=random_state)
+        X = deepcopy(df.drop(columns=["income"]).values)
+        y = deepcopy(df["income"].values)
+    elif base_dataset == "cifar-10-grey-animal-vehicle":
+        df = pd.read_parquet("base-datasets/cifar-10-grey.parquet")
+        df = df.sample(frac=1, random_state=random_state)
+        df.label = df.label.apply(lambda x: 0 if x in [0, 1, 8, 9] else 1)
+        X = deepcopy(df.drop(columns=["label"]).values)
+        y = deepcopy(df["label"].values)
     else:
         raise ValueError("Base dataset not found.")
     
@@ -100,7 +122,7 @@ VARIANTS = ["naive", "simple", "intermediate", "hard"]
 
 # Argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--base_dataset", "-bd", type=str, required=True, choices=["covtype"])
+parser.add_argument("--base_dataset", "-bd", type=str, required=True, choices=["covtype", "cifar-10-grey", "cifar-10-grey-animal-vehicle", "adult"])
 parser.add_argument("--clustering_method", "-cm", type=str, required=True, choices=["kmeans"])
 parser.add_argument("--n_clusters", "-nc", type=int, required=True)
 args = parser.parse_args()
@@ -119,20 +141,23 @@ clusters = get_clusters(X, clustering_method, n_clusters, random_state)
 
 # Setting the proportions and bags sizes target
 n_bags = 1000
-n_items = 581012
-n_classes = 7
+n_items = X.shape[0]
+n_classes = len(np.unique(y))
 n_bags_type = "massive"
 bags_size_type = "equal"
 proportions_type = "close-global"
+#(1000, 10)
 
 proportions_global = np.zeros((n_classes), dtype=float)
 for j in np.unique(y):
     proportions_global[j] = np.count_nonzero(y == j) / len(y)
 
-proportions_target = np.array([proportions_global / 1000] * n_bags)
+proportions_target = np.array([proportions_global] * n_bags)
 bags_sizes_target = np.array([n_items // n_bags] * n_bags)
 bags_sizes_target_naive = np.array([n_items // n_bags] * n_bags)
 
+# Check if proportions_target is valid
+print(f"Does the proportions target have stochastic rows?: {np.isclose(proportions_target.sum(axis=1), 1).all()}\n")
 
 # Saving the base datasets (it will be the same for all variants)
 df_base = pd.DataFrame(X, columns=[str(i) for i in range(X.shape[1])])

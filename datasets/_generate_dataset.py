@@ -110,12 +110,18 @@ def llp_variant_generation(X, y=None, llp_variant="naive", bags_size_target=np.a
 
     n_classes = len(np.unique(y))
 
-    if llp_variant == "naive":
-        bags = random.choice(n_bags, size=len(X), p=p_bags_size_target)
-    elif llp_variant == "simple":
+    if llp_variant != "naive":
+        # Binary Classification Case
         if n_classes == 2 and proportions_target.ndim == 1:
             proportions_target = np.array([1 - proportions_target, proportions_target]).T
-        
+
+        # Check if proportions_target is valid
+        if not np.isclose(proportions_target.sum(axis=1), 1).all():
+            raise Exception("The sum of proportions_target must be 1 for each bag")
+            
+    if llp_variant == "naive":
+        bags = random.choice(n_bags, size=len(X), p=p_bags_size_target)
+    elif llp_variant == "simple":        
         p_distribution = proportions_target.T * p_bags_size_target
         p_distribution = p_distribution / p_distribution.sum(axis=1, keepdims=True)
 
@@ -126,9 +132,6 @@ def llp_variant_generation(X, y=None, llp_variant="naive", bags_size_target=np.a
             bags[idx] = random.choice(range(n_bags), size=len(idx), p=p_distribution[i])
 
     elif llp_variant == "intermediate":
-        if n_classes == 2 and proportions_target.ndim == 1:
-            proportions_target = np.array([1 - proportions_target, proportions_target]).T
-
         P_yb = np.round(proportions_target.T * bags_size_target).astype(int)
 
         P_x = np.array([float(len(np.where(clusters == i)[0])) for i in range(n_clusters)])
@@ -158,10 +161,6 @@ def llp_variant_generation(X, y=None, llp_variant="naive", bags_size_target=np.a
         P_x /= P_x.sum()
         P_y = np.array([len(y[y == i]) / len(y) for i in range(n_classes)])
         P_b = bags_size_target / bags_size_target.sum()
-
-        # Binary Classification Case
-        if n_classes == 2 and proportions_target.ndim == 1:
-            proportions_target = np.array([1 - proportions_target, proportions_target]).T
 
         P_yb = proportions_target.T * P_b
         P_y_given_x = np.empty((n_classes, n_clusters))
