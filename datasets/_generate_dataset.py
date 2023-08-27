@@ -114,7 +114,7 @@ def llp_variant_generation(X, y=None, llp_variant="naive", bags_size_target=np.a
         bags = random.choice(n_bags, size=len(X), p=p_bags_size_target)
     elif llp_variant == "simple":
         if n_classes == 2 and proportions_target.ndim == 1:
-            proportions_target = np.array([1 - proportions_target, proportions_target])
+            proportions_target = np.array([1 - proportions_target, proportions_target]).T
         
         p_distribution = proportions_target.T * p_bags_size_target
         p_distribution = p_distribution / p_distribution.sum(axis=1, keepdims=True)
@@ -127,7 +127,7 @@ def llp_variant_generation(X, y=None, llp_variant="naive", bags_size_target=np.a
 
     elif llp_variant == "intermediate":
         if n_classes == 2 and proportions_target.ndim == 1:
-            proportions_target = np.array([1 - proportions_target, proportions_target])
+            proportions_target = np.array([1 - proportions_target, proportions_target]).T
 
         P_yb = np.round(proportions_target.T * bags_size_target).astype(int)
 
@@ -161,7 +161,7 @@ def llp_variant_generation(X, y=None, llp_variant="naive", bags_size_target=np.a
 
         # Binary Classification Case
         if n_classes == 2 and proportions_target.ndim == 1:
-            proportions_target = np.array([1 - proportions_target, proportions_target])
+            proportions_target = np.array([1 - proportions_target, proportions_target]).T
 
         P_yb = proportions_target.T * P_b
         P_y_given_x = np.empty((n_classes, n_clusters))
