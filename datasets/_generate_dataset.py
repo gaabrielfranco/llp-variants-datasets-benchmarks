@@ -1,8 +1,6 @@
 from copy import deepcopy
 import numpy as np
 import warnings
-from sklearn.mixture import GaussianMixture
-from sklearn.cluster import KMeans
 from ipfn import ipfn
 
 def derivative_f(B, C, A): 
@@ -18,8 +16,7 @@ def derivative_f(B, C, A):
     """
     return (-2 * (B.T @ C)) + (2 * (B.T @ B @ A))
 
-
-def gd(B, C, n_clusters, n_bags, alpha=10e-8, max_iter = 10000, tol = 10e-6, n_runs=10, random_state=None):
+def gd(B, C, n_clusters, n_bags, alpha=10e-8, max_iter=10000, tol=10e-6, n_runs=10, random_state=None):
     """
     Find A s.t. ||C - BA||_F^2 is minimized using gradient descent.
 
@@ -111,41 +108,41 @@ def llp_variant_generation(X, y=None, llp_variant="naive", bags_size_target=np.a
     n_bags = len(bags_size_target)
     p_bags_size_target = bags_size_target / bags_size_target.sum()
 
+    n_classes = len(np.unique(y))
+
+    if llp_variant != "naive":
+        # Binary Classification Case
+        if n_classes == 2 and proportions_target.ndim == 1:
+            proportions_target = np.array([1 - proportions_target, proportions_target]).T
+
+        # Check if proportions_target is valid
+        if not np.isclose(proportions_target.sum(axis=1), 1).all():
+            raise Exception("The sum of proportions_target must be 1 for each bag")
+            
     if llp_variant == "naive":
         bags = random.choice(n_bags, size=len(X), p=p_bags_size_target)
-    elif llp_variant == "simple":
-        proportions_global = len(y[y == 1]) / len(y)
-        p_positives = (proportions_target * p_bags_size_target) / proportions_global
-        p_negatives = ((1 - proportions_target) * p_bags_size_target) / (1 - proportions_global)
+    elif llp_variant == "simple":        
+        p_distribution = proportions_target.T * p_bags_size_target
+        p_distribution = p_distribution / p_distribution.sum(axis=1, keepdims=True)
 
-        if not np.isclose(p_positives.sum(), 1).all():
-            warnings.warn("p_positives.sum() != 1 - it will be normalized")
-            p_positives /= p_positives.sum()
-        if not np.isclose(p_negatives.sum(), 1).all():
-            warnings.warn("p_negatives.sum() != 1 - it will be normalized")
-            p_negatives /= p_negatives.sum()
-
-        if np.isclose(p_positives, p_negatives).all():
-            raise Exception("p_positives must not be equal to p_negatives. Change the proportions_target or bags_size_target")
-         
-        idx_negatives = np.where(y == 0)[0]
-        idx_positives = np.where(y == 1)[0]
-
+        # Sampling step
         bags = np.empty(len(y), int)
-        bags[idx_negatives] = random.choice(range(n_bags), size=len(idx_negatives), p=p_negatives)
-        bags[idx_positives] = random.choice(range(n_bags), size=len(idx_positives), p=p_positives)
-    elif llp_variant == "intermediate":        
-        n_positives_target = np.round(proportions_target * bags_size_target).astype(int)
-        n_negatives_target = (bags_size_target - n_positives_target).astype(int)
+        for i in range(n_classes):
+            idx = np.where(y == i)[0]
+            bags[idx] = random.choice(range(n_bags), size=len(idx), p=p_distribution[i])
 
-        P_yx = np.zeros((2, n_clusters), dtype=int)
-        P_yb = np.array([n_negatives_target, n_positives_target], dtype=int)
+    elif llp_variant == "intermediate":
+        P_yb = np.round(proportions_target.T * bags_size_target).astype(int)
 
-        for cluster in range(n_clusters):
-            cluster_idx = np.where(clusters == cluster)[0]
-            y_cluster = y[cluster_idx]
-            P_yx[0, cluster] = int(np.round(np.sum(y_cluster == 0)))
-            P_yx[1, cluster] = int(np.round(np.sum(y_cluster == 1)))
+        P_x = np.array([float(len(np.where(clusters == i)[0])) for i in range(n_clusters)])
+        P_x /= P_x.sum()
+
+        P_yx = np.zeros((n_classes, n_clusters), dtype=int)
+        for i in range(n_classes):
+            for j in range(n_clusters):
+                cluster_idx = np.where(clusters == j)[0]
+                y_cluster = y[cluster_idx]
+                P_yx[i, j] = int(np.round(np.sum(y_cluster == i)))
 
         A = gd(P_yx, P_yb, n_clusters, n_bags, alpha=10e-12, max_iter = 10000, tol = 0.0001, random_state=random_state)
 
@@ -154,50 +151,53 @@ def llp_variant_generation(X, y=None, llp_variant="naive", bags_size_target=np.a
 
         # Sampling step
         bags = np.empty(len(X), dtype=int)
-
         for cluster in range(n_clusters):
             cluster_idx = np.where(clusters == cluster)[0]
             bags[cluster_idx] = random.choice(range(n_bags), size=len(cluster_idx), replace=True, p=A[cluster, :])
+
+
     elif llp_variant == "hard":
-        L = len(bags_size_target)
-        K = n_clusters
-        C = 2
+        P_x = np.array([float(len(np.where(clusters == i)[0])) for i in range(n_clusters)])
+        P_x /= P_x.sum()
+        P_y = np.array([len(y[y == i]) / len(y) for i in range(n_classes)])
+        P_b = bags_size_target / bags_size_target.sum()
 
-        p_x = np.array([float(len(np.where(clusters == i)[0])) for i in range(n_clusters)])
-        p_x /= p_x.sum()
-        p_y = np.array([len(y[y == 0]) / len(y), len(y[y == 1]) / len(y)])
-        p_b = bags_size_target / bags_size_target.sum()
-        p_y_given_x = np.empty(K)
-        for i in range(K):
-            cluster_idx = np.where(clusters == i)[0]
-            p_y_given_x[i] = y[cluster_idx].sum() / len(cluster_idx)
-        p_y_b = np.array([(1 - proportions_target) * p_b, proportions_target * p_b])
-        p_y_x = np.array([(1 - p_y_given_x) * p_x, p_y_given_x * p_x])
+        P_yb = proportions_target.T * P_b
+        P_y_given_x = np.empty((n_classes, n_clusters))
+        for i in range(n_classes):
+            for j in range(n_clusters):
+                cluster_idx = np.where(clusters == j)[0]
+                y_cluster = y[cluster_idx]
+                P_y_given_x[i, j] = (y_cluster == i).sum() / len(cluster_idx)
+        P_yx = P_y_given_x * P_x
 
-        A = random.uniform(0, 1, size=(C, K, L))
+        A = random.uniform(0, 1, size=(n_classes, n_clusters, n_bags))
         A /= A.sum()
 
-        aggregates = [p_y, p_x, p_b, p_y_x, p_y_b]
+        aggregates = [P_y, P_x, P_b, P_yx, P_yb]
         dimensions = [[0], [1], [2], [0, 1], [0, 2]]
 
         IPF = ipfn.ipfn(A, aggregates, dimensions, max_iteration=1000)
         A = IPF.iteration()
 
-        P_b_xy = deepcopy(A)
-        for x in range(K):
-            for label in range(C):
-                P_b_xy[label, x, :] /= P_b_xy[label, x, :].sum()
+        # Sampling step
+        P_b_given_xy = deepcopy(A)
+        for x in range(n_clusters):
+            for label in range(n_classes):
+                if np.isclose(P_b_given_xy[label, x, :].sum(), 0):
+                    P_b_given_xy[label, x, :] = 0
+                else:
+                    P_b_given_xy[label, x, :] /= P_b_given_xy[label, x, :].sum()
 
         bags = np.empty(len(X), dtype=int)
-        for cluster in range(K):
+        for cluster in range(n_clusters):
             idx_cluster = np.where(clusters == cluster)[0]
             y_cluster = y[idx_cluster]
-            for label in range(C):
+            for label in range(n_classes):
                 idx_cluster_label = np.where(y_cluster == label)[0]
-                p_label = P_b_xy[label, cluster, :]
-                bags[idx_cluster[idx_cluster_label]] = random.choice(range(L), size=len(idx_cluster_label), replace=True, p=p_label)
-    else:
-        raise Exception("llp_variant must be one of ['naive', 'simple', 'intermediate', 'hard']")
+                p_label = P_b_given_xy[label, cluster, :]
+                if np.isclose(p_label.sum(), 1):
+                    bags[idx_cluster[idx_cluster_label]] = random.choice(range(n_bags), size=len(idx_cluster_label), replace=True, p=p_label)
 
     return bags
 
